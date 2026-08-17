@@ -1,268 +1,637 @@
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+import joblib
 
-from sklearn.compose import ColumnTransformer
 from sklearn.metrics import (
     accuracy_score,
-    classification_report,
-    confusion_matrix,
-    f1_score,
-    matthews_corrcoef,
+    roc_auc_score,
     precision_score,
     recall_score,
-    roc_auc_score,
+    f1_score,
+    matthews_corrcoef,
+    confusion_matrix,
+    classification_report
 )
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-from model.logistic_regression import build_model as build_logistic
-from model.decision_tree import build_model as build_tree
-from model.knn import build_model as build_knn
-from model.naive_bayes import build_model as build_naive_bayes
-from model.random_forest import build_model as build_random_forest
 
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
 
 st.set_page_config(
-    page_title="Bank Deposit ML Lab",
-    page_icon="🏦",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    page_title="Bank Term Deposit Prediction",
+    layout="wide"
 )
 
-NUMERICAL_FEATURES = [
-    "age", "balance", "day", "duration", "campaign", "pdays", "previous"
-]
-CATEGORICAL_FEATURES = [
-    "job", "marital", "education", "default", "housing", "loan",
-    "contact", "month", "poutcome"
-]
-FEATURES = NUMERICAL_FEATURES + CATEGORICAL_FEATURES
-TARGET = "deposit"
 
-MODEL_BUILDERS = {
-    "Logistic Regression": build_logistic,
-    "Decision Tree": build_tree,
-    "KNN": build_knn,
-    "Naive Bayes": build_naive_bayes,
-    "Random Forest": build_random_forest,
-}
+# ============================================================
+# TITLE
+# ============================================================
 
-MODEL_NOTES = {
-    "Logistic Regression": "A linear classifier that provides a strong baseline for binary prediction.",
-    "Decision Tree": "A rule-based tree model that captures nonlinear feature relationships.",
-    "KNN": "A distance-based classifier that predicts from nearby training observations.",
-    "Naive Bayes": "A probabilistic classifier based on the Gaussian Naive Bayes assumption.",
-    "Random Forest": "An ensemble of decision trees designed to improve generalization and robustness.",
-}
-
-EXPECTED_RESULTS = pd.DataFrame([
-    ["Logistic Regression", 0.8262, 0.9071, 0.8278, 0.7996, 0.8135, 0.6513],
-    ["Decision Tree", 0.8110, 0.8798, 0.8093, 0.7864, 0.7977, 0.6207],
-    ["KNN", 0.8173, 0.8796, 0.8199, 0.7873, 0.8033, 0.6333],
-    ["Naive Bayes", 0.7201, 0.8042, 0.7837, 0.5652, 0.6568, 0.4472],
-    ["Random Forest", 0.8513, 0.9173, 0.8190, 0.8809, 0.8488, 0.7047],
-], columns=["ML Model", "Accuracy", "AUC", "Precision", "Recall", "F1", "MCC"])
-
-
-@st.cache_data
-def load_training_data():
-    return pd.read_csv("bank.csv")
-
-
-@st.cache_resource
-def prepare_and_train():
-    df = load_training_data()
-    X = df.drop(TARGET, axis=1)
-    y = df[TARGET].map({"no": 0, "yes": 1})
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.20, random_state=42, stratify=y
-    )
-
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ("num", StandardScaler(), NUMERICAL_FEATURES),
-            ("cat", OneHotEncoder(handle_unknown="ignore"), CATEGORICAL_FEATURES),
-        ]
-    )
-
-    X_train_processed = preprocessor.fit_transform(X_train)
-    X_test_processed = preprocessor.transform(X_test)
-
-    trained_models = {}
-    for name, builder in MODEL_BUILDERS.items():
-        model = builder()
-        if name == "Naive Bayes":
-            train_input = X_train_processed.toarray() if hasattr(X_train_processed, "toarray") else X_train_processed
-        else:
-            train_input = X_train_processed
-        model.fit(train_input, y_train)
-        trained_models[name] = model
-
-    return df, preprocessor, trained_models, X_test, y_test, X_test_processed
-
-
-def to_prediction_matrix(matrix, model_name):
-    if model_name == "Naive Bayes" and hasattr(matrix, "toarray"):
-        return matrix.toarray()
-    return matrix
-
-
-def evaluate_model(model, model_name, X_data, y_data):
-    prediction_input = to_prediction_matrix(X_data, model_name)
-    predictions = model.predict(prediction_input)
-    probabilities = model.predict_proba(prediction_input)[:, 1]
-
-    return {
-        "Accuracy": accuracy_score(y_data, predictions),
-        "AUC": roc_auc_score(y_data, probabilities),
-        "Precision": precision_score(y_data, predictions, zero_division=0),
-        "Recall": recall_score(y_data, predictions, zero_division=0),
-        "F1": f1_score(y_data, predictions, zero_division=0),
-        "MCC": matthews_corrcoef(y_data, predictions),
-        "predictions": predictions,
-    }
-
-
-# Fix indentation of cached functions when this file is copied into environments that preserve decorators.
-df, preprocessor, models, X_reference_test, y_reference_test, _ = prepare_and_train()
-
-st.title("🏦 Bank Term Deposit ML Lab")
-st.caption("Interactive comparison of five classification models on the Bank Marketing dataset")
+st.title("Bank Term Deposit Prediction")
 
 st.markdown(
     """
-    **Objective:** Predict whether a customer will subscribe to a term deposit (`yes` / `no`).  
-    The application uses the same preprocessing, train/test split, and model settings used for the assignment experiments.
+    ### Machine Learning Classification Model Comparison
+
+    This application predicts whether a bank customer will
+    subscribe to a term deposit using trained classification
+    models.
     """
 )
 
-with st.sidebar:
-    st.header("Evaluation Controls")
-    uploaded_file = st.file_uploader("Upload test data (CSV)", type=["csv"])
-    selected_model_name = st.selectbox("Choose a classification model", list(MODEL_BUILDERS.keys()))
-    st.divider()
-    st.write("**Models available**")
-    for model_name in MODEL_BUILDERS:
-        st.write(f"• {model_name}")
+st.divider()
 
-st.subheader("Dataset Overview")
-info1, info2, info3, info4 = st.columns(4)
-info1.metric("Instances", f"{len(df):,}")
-info2.metric("Input Features", len(FEATURES))
-info3.metric("Target Classes", 2)
-info4.metric("Missing Values", int(df.isna().sum().sum()))
+
+# ============================================================
+# LOAD TRAINED MODELS
+# ============================================================
+
+@st.cache_resource
+def load_models():
+
+    preprocessor = joblib.load(
+        "model/preprocessor.joblib"
+    )
+
+    models = {
+
+        "Logistic Regression":
+            joblib.load(
+                "model/logistic_regression.joblib"
+            ),
+
+        "Decision Tree":
+            joblib.load(
+                "model/decision_tree.joblib"
+            ),
+
+        "KNN":
+            joblib.load(
+                "model/knn.joblib"
+            ),
+
+        "Naive Bayes":
+            joblib.load(
+                "model/naive_bayes.joblib"
+            ),
+
+        "Random Forest":
+            joblib.load(
+                "model/random_forest.joblib"
+            )
+    }
+
+    return preprocessor, models
+
+
+preprocessor, models = load_models()
+
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+
+st.sidebar.header("Model Configuration")
+
+uploaded_file = st.sidebar.file_uploader(
+    "Upload test data CSV",
+    type=["csv"]
+)
+
+selected_model_name = st.sidebar.selectbox(
+    "Select Classification Model",
+    list(models.keys())
+)
+
+
+# ============================================================
+# MODEL INFORMATION
+# ============================================================
+
+model_descriptions = {
+
+    "Logistic Regression":
+        "Linear classification model that estimates the probability of a customer subscribing to a term deposit.",
+
+    "Decision Tree":
+        "Tree-based classifier that makes predictions through a sequence of feature-based decisions.",
+
+    "KNN":
+        "Instance-based classifier that predicts a class using the nearest training observations.",
+
+    "Naive Bayes":
+        "Probabilistic classifier based on Bayes' theorem with the assumption of conditional independence between features.",
+
+    "Random Forest":
+        "Ensemble classifier that combines multiple decision trees to improve predictive performance and robustness."
+}
+
+
+st.sidebar.info(
+    model_descriptions[selected_model_name]
+)
+
+
+# ============================================================
+# INITIAL SCREEN
+# ============================================================
 
 if uploaded_file is None:
-    st.info("Upload `test_data.csv` from the sidebar to evaluate the selected model.")
 
-    st.subheader("Target Distribution")
-    target_counts = df[TARGET].value_counts().rename_axis("deposit").reset_index(name="count")
-    st.dataframe(target_counts, hide_index=True, use_container_width=True)
+    st.info(
+        "Please upload the test_data.csv file using the "
+        "sidebar to evaluate the selected model."
+    )
 
-    st.subheader("Model Guide")
-    guide = pd.DataFrame({"Model": list(MODEL_NOTES.keys()), "Purpose": list(MODEL_NOTES.values())})
-    st.dataframe(guide, hide_index=True, use_container_width=True)
+    st.subheader("Available Classification Models")
+
+    for model_name in models.keys():
+
+        st.write(
+            f"• {model_name}"
+        )
+
+
+# ============================================================
+# PROCESS UPLOADED DATA
+# ============================================================
+
 else:
-    test_data = pd.read_csv(uploaded_file)
 
-    required_columns = FEATURES + [TARGET]
-    missing_columns = [column for column in required_columns if column not in test_data.columns]
+    # --------------------------------------------------------
+    # LOAD TEST DATA
+    # --------------------------------------------------------
 
-    if missing_columns:
-        st.error("The uploaded CSV is missing required columns.")
-        st.write(missing_columns)
-        st.stop()
+    test_data = pd.read_csv(
+        uploaded_file
+    )
 
-    if test_data[TARGET].isna().any():
-        st.error("The uploaded target column contains missing values.")
-        st.stop()
 
-    if not test_data[TARGET].isin(["yes", "no"]).all():
-        st.error("The `deposit` column must contain only `yes` and `no`.")
-        st.stop()
-
-    X_uploaded = test_data[FEATURES]
-    y_uploaded = test_data[TARGET].map({"no": 0, "yes": 1})
-    X_uploaded_processed = preprocessor.transform(X_uploaded)
+    # --------------------------------------------------------
+    # DISPLAY DATA INFORMATION
+    # --------------------------------------------------------
 
     st.subheader("Uploaded Test Data")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Test Rows", f"{len(test_data):,}")
-    c2.metric("Features", len(FEATURES))
-    c3.metric("Duplicate Rows", int(test_data.duplicated().sum()))
-    st.dataframe(test_data.head(10), hide_index=True, use_container_width=True)
 
-    selected_model = models[selected_model_name]
-    result = evaluate_model(selected_model, selected_model_name, X_uploaded_processed, y_uploaded)
+    col1, col2, col3, col4 = st.columns(4)
 
-    st.divider()
-    st.subheader(f"📊 {selected_model_name} Performance")
-    st.caption(MODEL_NOTES[selected_model_name])
+    col1.metric(
+        "Rows",
+        test_data.shape[0]
+    )
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Accuracy", f"{result['Accuracy']:.4f}")
-    m2.metric("AUC", f"{result['AUC']:.4f}")
-    m3.metric("Precision", f"{result['Precision']:.4f}")
+    col2.metric(
+        "Columns",
+        test_data.shape[1]
+    )
 
-    m4, m5, m6 = st.columns(3)
-    m4.metric("Recall", f"{result['Recall']:.4f}")
-    m5.metric("F1 Score", f"{result['F1']:.4f}")
-    m6.metric("MCC", f"{result['MCC']:.4f}")
+    col3.metric(
+        "Missing Values",
+        int(test_data.isnull().sum().sum())
+    )
 
-    st.divider()
-    left, right = st.columns(2)
+    col4.metric(
+        "Duplicate Rows",
+        int(test_data.duplicated().sum())
+    )
 
-    with left:
-        st.subheader("Confusion Matrix")
-        cm = confusion_matrix(y_uploaded, result["predictions"])
-        fig, ax = plt.subplots(figsize=(5, 4))
-        ax.imshow(cm)
-        ax.set_title(f"{selected_model_name} - Confusion Matrix")
-        ax.set_xlabel("Predicted Label")
-        ax.set_ylabel("Actual Label")
-        ax.set_xticks([0, 1], ["No", "Yes"])
-        ax.set_yticks([0, 1], ["No", "Yes"])
-        for i in range(2):
-            for j in range(2):
-                ax.text(j, i, cm[i, j], ha="center", va="center")
-        st.pyplot(fig, clear_figure=True)
+    st.dataframe(
+        test_data.head(10),
+        use_container_width=True
+    )
 
-    with right:
-        st.subheader("Classification Report")
-        report = classification_report(
-            y_uploaded,
-            result["predictions"],
-            target_names=["No Deposit", "Deposit"],
-            output_dict=True,
-            zero_division=0,
+
+    # --------------------------------------------------------
+    # VALIDATE TARGET COLUMN
+    # --------------------------------------------------------
+
+    if "deposit" not in test_data.columns:
+
+        st.error(
+            "The uploaded CSV must contain the 'deposit' target column."
         )
-        report_df = pd.DataFrame(report).transpose()
-        st.dataframe(report_df.round(4), use_container_width=True)
+
+        st.stop()
+
+
+    # --------------------------------------------------------
+    # PREPARE FEATURES AND TARGET
+    # --------------------------------------------------------
+
+    X_uploaded = test_data.drop(
+        "deposit",
+        axis=1
+    )
+
+    y_uploaded = test_data["deposit"].map({
+        "no": 0,
+        "yes": 1
+    })
+
+
+    # Check for invalid target values
+
+    if y_uploaded.isnull().any():
+
+        st.error(
+            "The 'deposit' column must contain only 'yes' or 'no'."
+        )
+
+        st.stop()
+
+
+    # --------------------------------------------------------
+    # TRANSFORM FEATURES
+    # --------------------------------------------------------
+
+    X_uploaded_processed = preprocessor.transform(
+        X_uploaded
+    )
+
+
+    # --------------------------------------------------------
+    # SELECT TRAINED MODEL
+    # --------------------------------------------------------
+
+    selected_model = models[
+        selected_model_name
+    ]
+
+
+    # --------------------------------------------------------
+    # PREPARE INPUT FOR MODEL
+    # --------------------------------------------------------
+
+    if selected_model_name == "Naive Bayes":
+
+        X_prediction = (
+            X_uploaded_processed.toarray()
+            if hasattr(
+                X_uploaded_processed,
+                "toarray"
+            )
+            else X_uploaded_processed
+        )
+
+    else:
+
+        X_prediction = X_uploaded_processed
+
+
+    # --------------------------------------------------------
+    # MAKE PREDICTIONS
+    # --------------------------------------------------------
+
+    y_pred = selected_model.predict(
+        X_prediction
+    )
+
+    y_prob = selected_model.predict_proba(
+        X_prediction
+    )[:, 1]
+
+
+    # ========================================================
+    # PERFORMANCE METRICS
+    # ========================================================
+
+    accuracy = accuracy_score(
+        y_uploaded,
+        y_pred
+    )
+
+    auc = roc_auc_score(
+        y_uploaded,
+        y_prob
+    )
+
+    precision = precision_score(
+        y_uploaded,
+        y_pred
+    )
+
+    recall = recall_score(
+        y_uploaded,
+        y_pred
+    )
+
+    f1 = f1_score(
+        y_uploaded,
+        y_pred
+    )
+
+    mcc = matthews_corrcoef(
+        y_uploaded,
+        y_pred
+    )
+
+
+    # ========================================================
+    # EVALUATION METRICS
+    # ========================================================
 
     st.divider()
-    st.subheader("All-Model Comparison on Uploaded Test Data")
 
-    comparison_rows = []
+    st.subheader(
+        f"{selected_model_name} Evaluation Metrics"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Accuracy",
+        f"{accuracy:.4f}"
+    )
+
+    col2.metric(
+        "AUC",
+        f"{auc:.4f}"
+    )
+
+    col3.metric(
+        "Precision",
+        f"{precision:.4f}"
+    )
+
+
+    col4, col5, col6 = st.columns(3)
+
+    col4.metric(
+        "Recall",
+        f"{recall:.4f}"
+    )
+
+    col5.metric(
+        "F1 Score",
+        f"{f1:.4f}"
+    )
+
+    col6.metric(
+        "MCC",
+        f"{mcc:.4f}"
+    )
+
+
+    # ========================================================
+    # CONFUSION MATRIX
+    # ========================================================
+
+    st.divider()
+
+    st.subheader("Confusion Matrix")
+
+    cm = confusion_matrix(
+        y_uploaded,
+        y_pred
+    )
+
+    fig, ax = plt.subplots(
+        figsize=(5, 4)
+    )
+
+    ax.imshow(cm)
+
+    ax.set_title(
+        f"{selected_model_name} - Confusion Matrix"
+    )
+
+    ax.set_xlabel(
+        "Predicted Label"
+    )
+
+    ax.set_ylabel(
+        "Actual Label"
+    )
+
+    ax.set_xticks([0, 1])
+    ax.set_yticks([0, 1])
+
+    ax.set_xticklabels(
+        ["No", "Yes"]
+    )
+
+    ax.set_yticklabels(
+        ["No", "Yes"]
+    )
+
+    for i in range(2):
+
+        for j in range(2):
+
+            ax.text(
+                j,
+                i,
+                cm[i, j],
+                ha="center",
+                va="center"
+            )
+
+    st.pyplot(fig)
+
+    # ========================================================
+    # CLASSIFICATION REPORT
+    # ========================================================
+
+    st.divider()
+
+    st.subheader(
+        "Classification Report"
+    )
+
+    report = classification_report(
+        y_uploaded,
+        y_pred,
+        target_names=[
+            "No Deposit",
+            "Deposit"
+        ],
+        output_dict=True
+    )
+
+    report_df = pd.DataFrame(
+        report
+    ).transpose()
+
+    st.dataframe(
+        report_df.round(4),
+        use_container_width=True
+    )
+
+    # ========================================================
+    # ALL MODEL COMPARISON TABLE
+    # ========================================================
+
+    st.divider()
+
+    st.subheader(
+        "Model Comparison"
+    )
+
+    st.markdown(
+        """
+        The table below compares all five trained classification
+        models using the six required evaluation metrics.
+        """
+    )
+
+    comparison_results = []
+
     for model_name, model in models.items():
-        model_result = evaluate_model(model, model_name, X_uploaded_processed, y_uploaded)
-        comparison_rows.append([
-            model_name,
-            model_result["Accuracy"],
-            model_result["AUC"],
-            model_result["Precision"],
-            model_result["Recall"],
-            model_result["F1"],
-            model_result["MCC"],
-        ])
+
+        # Naive Bayes requires dense input
+        if model_name == "Naive Bayes":
+
+            X_model_prediction = (
+                X_uploaded_processed.toarray()
+                if hasattr(
+                    X_uploaded_processed,
+                    "toarray"
+                )
+                else X_uploaded_processed
+            )
+
+        else:
+
+            X_model_prediction = X_uploaded_processed
+
+
+        # Predictions
+        model_pred = model.predict(
+            X_model_prediction
+        )
+
+        model_prob = model.predict_proba(
+            X_model_prediction
+        )[:, 1]
+
+
+        # Metrics
+        model_accuracy = accuracy_score(
+            y_uploaded,
+            model_pred
+        )
+
+        model_auc = roc_auc_score(
+            y_uploaded,
+            model_prob
+        )
+
+        model_precision = precision_score(
+            y_uploaded,
+            model_pred
+        )
+
+        model_recall = recall_score(
+            y_uploaded,
+            model_pred
+        )
+
+        model_f1 = f1_score(
+            y_uploaded,
+            model_pred
+        )
+
+        model_mcc = matthews_corrcoef(
+            y_uploaded,
+            model_pred
+        )
+
+
+        comparison_results.append({
+
+            "ML Model":
+                model_name,
+
+            "Accuracy":
+                model_accuracy,
+
+            "AUC":
+                model_auc,
+
+            "Precision":
+                model_precision,
+
+            "Recall":
+                model_recall,
+
+            "F1":
+                model_f1,
+
+            "MCC":
+                model_mcc
+        })
+
 
     comparison_df = pd.DataFrame(
-        comparison_rows,
-        columns=["ML Model", "Accuracy", "AUC", "Precision", "Recall", "F1", "MCC"],
+        comparison_results
     )
-    st.dataframe(comparison_df.round(4), hide_index=True, use_container_width=True)
 
-    winner = comparison_df.loc[comparison_df["F1"].idxmax(), "ML Model"]
-    st.success(f"Overall winner on the uploaded test data by F1 Score: **{winner}**")
+
+    # Round values for display
+    comparison_display = comparison_df.copy()
+
+    metric_columns = [
+        "Accuracy",
+        "AUC",
+        "Precision",
+        "Recall",
+        "F1",
+        "MCC"
+    ]
+
+    comparison_display[
+        metric_columns
+    ] = comparison_display[
+        metric_columns
+    ].round(4)
+
+
+    st.dataframe(
+        comparison_display,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+    # ========================================================
+    # BEST MODEL
+    # ========================================================
+
+    best_model_row = comparison_df.loc[
+        comparison_df["Accuracy"].idxmax()
+    ]
+
+    st.success(
+        f"Best model based on Accuracy: "
+        f"**{best_model_row['ML Model']}** "
+        f"with an Accuracy of "
+        f"**{best_model_row['Accuracy']:.4f}**."
+    )
+
+    # ========================================================
+    # PREDICTION SUMMARY
+    # ========================================================
+
+    st.divider()
+
+    st.subheader(
+        "Prediction Summary"
+    )
+
+    prediction_counts = pd.Series(
+        y_pred
+    ).value_counts()
+
+    summary_col1, summary_col2 = st.columns(2)
+
+    summary_col1.metric(
+        "Predicted No Deposit",
+        int(prediction_counts.get(0, 0))
+    )
+
+    summary_col2.metric(
+        "Predicted Deposit",
+        int(prediction_counts.get(1, 0))
+    )
