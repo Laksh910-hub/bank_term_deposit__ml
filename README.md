@@ -76,13 +76,17 @@ The application provides:
 
 •	Upload the held-out test CSV dataset
 •	Select a classification model dropdown
-•	Comparison of all five trained models 
+•	View uploaded test data
+•	Display below Evaluation metrics for the selected model
 •	Display Accuracy 
-•	Display ROC-AUC 
+•	Display AUC 
 •	Display Precision 
 •	Display Recall 
 •	Display F1 Score 
 •	Display MCC 
 •	Display Confusion Matrix 
 •	Display Classification Report 
+•	Comparison of all five trained models 
+•	Prediction Summary
 •	View uploaded test data
+
