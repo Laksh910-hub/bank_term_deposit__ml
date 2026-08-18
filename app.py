@@ -14,20 +14,14 @@ from sklearn.metrics import (
     classification_report
 )
 
-
-# ============================================================
 # PAGE CONFIGURATION
-# ============================================================
 
 st.set_page_config(
     page_title="Bank Term Deposit Prediction",
     layout="wide"
 )
 
-
-# ============================================================
 # TITLE
-# ============================================================
 
 st.title("Bank Term Deposit Prediction")
 
@@ -43,10 +37,7 @@ st.markdown(
 
 st.divider()
 
-
-# ============================================================
 # LOAD TRAINED MODELS
-# ============================================================
 
 @st.cache_resource
 def load_models():
@@ -88,10 +79,7 @@ def load_models():
 
 preprocessor, models = load_models()
 
-
-# ============================================================
 # SIDEBAR
-# ============================================================
 
 st.sidebar.header("Model Configuration")
 
@@ -105,10 +93,7 @@ selected_model_name = st.sidebar.selectbox(
     list(models.keys())
 )
 
-
-# ============================================================
 # MODEL INFORMATION
-# ============================================================
 
 model_descriptions = {
 
@@ -133,10 +118,7 @@ st.sidebar.info(
     model_descriptions[selected_model_name]
 )
 
-
-# ============================================================
 # INITIAL SCREEN
-# ============================================================
 
 if uploaded_file is None:
 
@@ -153,25 +135,17 @@ if uploaded_file is None:
             f"• {model_name}"
         )
 
-
-# ============================================================
 # PROCESS UPLOADED DATA
-# ============================================================
 
 else:
 
-    # --------------------------------------------------------
     # LOAD TEST DATA
-    # --------------------------------------------------------
 
     test_data = pd.read_csv(
         uploaded_file
     )
 
-
-    # --------------------------------------------------------
     # DISPLAY DATA INFORMATION
-    # --------------------------------------------------------
 
     st.subheader("Uploaded Test Data")
 
@@ -202,10 +176,7 @@ else:
         use_container_width=True
     )
 
-
-    # --------------------------------------------------------
     # VALIDATE TARGET COLUMN
-    # --------------------------------------------------------
 
     if "deposit" not in test_data.columns:
 
@@ -215,10 +186,7 @@ else:
 
         st.stop()
 
-
-    # --------------------------------------------------------
     # PREPARE FEATURES AND TARGET
-    # --------------------------------------------------------
 
     X_uploaded = test_data.drop(
         "deposit",
@@ -241,28 +209,19 @@ else:
 
         st.stop()
 
-
-    # --------------------------------------------------------
     # TRANSFORM FEATURES
-    # --------------------------------------------------------
 
     X_uploaded_processed = preprocessor.transform(
         X_uploaded
     )
 
-
-    # --------------------------------------------------------
     # SELECT TRAINED MODEL
-    # --------------------------------------------------------
 
     selected_model = models[
         selected_model_name
     ]
 
-
-    # --------------------------------------------------------
     # PREPARE INPUT FOR MODEL
-    # --------------------------------------------------------
 
     if selected_model_name == "Naive Bayes":
 
@@ -279,10 +238,7 @@ else:
 
         X_prediction = X_uploaded_processed
 
-
-    # --------------------------------------------------------
     # MAKE PREDICTIONS
-    # --------------------------------------------------------
 
     y_pred = selected_model.predict(
         X_prediction
@@ -292,10 +248,7 @@ else:
         X_prediction
     )[:, 1]
 
-
-    # ========================================================
     # PERFORMANCE METRICS
-    # ========================================================
 
     accuracy = accuracy_score(
         y_uploaded,
@@ -327,10 +280,7 @@ else:
         y_pred
     )
 
-
-    # ========================================================
     # EVALUATION METRICS
-    # ========================================================
 
     st.divider()
 
@@ -373,10 +323,7 @@ else:
         f"{mcc:.4f}"
     )
 
-
-    # ========================================================
     # CONFUSION MATRIX
-    # ========================================================
 
     st.divider()
 
@@ -429,11 +376,9 @@ else:
             )
 
     st.pyplot(fig)
-
-    # ========================================================
+    
     # CLASSIFICATION REPORT
-    # ========================================================
-
+    
     st.divider()
 
     st.subheader(
@@ -459,9 +404,7 @@ else:
         use_container_width=True
     )
 
-    # ========================================================
     # ALL MODEL COMPARISON TABLE
-    # ========================================================
 
     st.divider()
 
@@ -594,10 +537,7 @@ else:
         hide_index=True
     )
 
-
-    # ========================================================
     # BEST MODEL
-    # ========================================================
 
     best_model_row = comparison_df.loc[
         comparison_df["Accuracy"].idxmax()
@@ -610,9 +550,7 @@ else:
         f"**{best_model_row['Accuracy']:.4f}**."
     )
 
-    # ========================================================
     # PREDICTION SUMMARY
-    # ========================================================
 
     st.divider()
 
