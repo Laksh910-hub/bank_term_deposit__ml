@@ -107,7 +107,3 @@ bank-ml-assignment/
 ## Reproducibility
 
 The experiment uses `random_state=42` for the train/test split and the model configurations recorded in the source code. The supplied `test_data.csv` is the same 20% test partition used to calculate the reported comparison results.
-
-## Academic Integrity
-
-The project was developed as a learning exercise. The implementation, observations, and final repository should be reviewed and understood by the student before submission.
