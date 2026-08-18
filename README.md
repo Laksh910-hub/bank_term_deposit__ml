@@ -28,15 +28,11 @@ The resulting processed feature matrix contains 51 columns after one-hot encodin
 
 ## c. Github Repository Link
 
-**Update after creating the repository:**
-
-`<GitHub Repository Link>`
+https://github.com/Laksh910-hub/bank_term_deposit__ml
 
 ## Live Streamlit App Link
 
-**Update after deployment:**
-
-`<Live Streamlit App Link>`
+https://bank-term-deposit-prediction-2025ac05124.streamlit.app/
 
 ## d. Models Used
 
@@ -70,40 +66,23 @@ The following classification models were implemented on the same dataset:
 
 ### Overall Winner
 
-**Random Forest** is the overall winner for this dataset. It achieved the highest Accuracy, AUC, Recall, F1 Score, and MCC. Logistic Regression achieved the highest Precision. Random Forest therefore provided the best overall balance of classification performance for this experiment.
+•	**Random Forest** is the overall best-performing model for the Bank Term Deposit dataset. 
+•	It achieved the highest **Accuracy (85.13%), AUC (91.73%), Recall (88.09%), F1 Score (84.88%), and MCC (70.47%)** among the five models. 
+•	Its ensemble approach allows it to capture more complex relationships in the customer data, resulting in better overall classification performance.
 
 ## Streamlit Application Features
 
 The application provides:
 
-- CSV test-data upload
-- Model-selection dropdown
-- Dataset overview
-- Accuracy, AUC, Precision, Recall, F1 Score, and MCC
-- Confusion matrix
-- Classification report
-- All-model comparison on the uploaded test data
-
-## Repository Structure
-
-```text
-bank-ml-assignment/
-│
-├── app.py
-├── bank.csv
-├── test_data.csv
-├── requirements.txt
-├── README.md
-│
-└── model/
-    ├── __init__.py
-    ├── logistic_regression.py
-    ├── decision_tree.py
-    ├── knn.py
-    ├── naive_bayes.py
-    └── random_forest.py
-```
-
-## Reproducibility
-
-The experiment uses `random_state=42` for the train/test split and the model configurations recorded in the source code. The supplied `test_data.csv` is the same 20% test partition used to calculate the reported comparison results.
+•	Upload the held-out test CSV dataset
+•	Select a classification model dropdown
+•	Comparison of all five trained models 
+•	Display Accuracy 
+•	Display ROC-AUC 
+•	Display Precision 
+•	Display Recall 
+•	Display F1 Score 
+•	Display MCC 
+•	Display Confusion Matrix 
+•	Display Classification Report 
+•	View uploaded test data
